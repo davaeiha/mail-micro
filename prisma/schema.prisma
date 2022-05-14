@@ -1,0 +1,49 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model client {
+    id             String       @id  @default(uuid())
+    email          String       @unique  @db.VarChar(80)
+    password       String       @db.VarChar(255)
+    created_at     DateTime     @default(now())   @db.DateTime
+    updated_at     DateTime     @db.DateTime
+}
+
+model mail {
+    id             Int           @id  @default(autoincrement())
+    from_email     String        @db.VarChar(80)
+    subject        String?       @db.VarChar(255)
+    body           String?       @db.LongText
+    text           String?       @db.Text
+    send_at        DateTime?     @db.DateTime
+    created_at     DateTime?     @default(now())   @db.DateTime
+    updated_at     DateTime?     @db.DateTime
+
+    receivers      receiver[]
+}
+
+model receiver {
+    id             Int           @id @default(autoincrement())
+    mail_id        Int?
+    to_email       String        @db.VarChar(80)
+    type           ReceiveType   @default(TO) ///1:to/2:cc/3:bcc
+    created_at     DateTime?     @default(now()) @db.DateTime
+    updated_at     DateTime?     @db.DateTime
+
+    mail           mail?         @relation(fields: [mail_id], references: [id])
+}
+
+enum ReceiveType{
+     TO   @map("1")
+     CC   @map("2")
+     BCC  @map("3")
+}
