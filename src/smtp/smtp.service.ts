@@ -3,6 +3,9 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { MailProducerService } from '../kafka/mail.producer.service';
 import { mail as Mail } from '@prisma/client';
+
+// import { MailProducerService } from '../kafka/mail.producer.service';
+import { ClientKafka } from '@nestjs/microservices';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const nodemailer = require('nodemailer');
 
@@ -14,6 +17,11 @@ export class SmtpService {
     private mailProducerService: MailProducerService,
   ) {}
 
+  // async onModuleInit() {
+  //   console.log(this.client.subscribeToResponseOf('smtp'));
+  //   await this.client.connect();
+  // }
+
   async createMail(data: Prisma.mailCreateInput, send = false) {
     this.mail = await this.prisma.mail.create({
       data,
@@ -23,6 +31,7 @@ export class SmtpService {
       await this.sendMailViaSmtp();
     }
     console.log(JSON.stringify(this.mail));
+
     await this.mailProducerService.produce({
       topic: 'smtp_response',
       messages: [
@@ -31,6 +40,15 @@ export class SmtpService {
         },
       ],
     });
+
+    // await this.mailProducerService.produce({
+    //   topic: 'smtp_response',
+    //   messages: [
+    //     {
+    //       value: JSON.stringify(this.mail),
+    //     },
+    //   ],
+    // });
     return this.mail;
   }
   async sendDraftedMail(id: number) {
