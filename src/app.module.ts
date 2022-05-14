@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import { SmtpModule } from './smtp/smtp.module';
+import { PrismaService } from './prisma.service';
+import { ImapModule } from './imap/imap.module';
+import { KafkaModule } from './kafka/kafka.module';
 
 @Module({
-  imports: [],
-  controllers: [AppController],
-  providers: [AppService],
+  imports: [SmtpModule, ImapModule, KafkaModule],
+  controllers: [],
+  providers: [PrismaService],
 })
 export class AppModule {}
