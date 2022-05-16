@@ -1,19 +1,13 @@
 import { Module } from '@nestjs/common';
 import { SmtpService } from './smtp.service';
 import { PrismaService } from '../prisma.service';
-
 import { SmtpConsumerService } from './smtp.consumer.service';
-import { MailConsumerService } from '../kafka/mail.consumer.service';
-import { MailProducerService } from '../kafka/mail.producer.service';
+import { KafkaModule } from 'src/kafka/kafka.module';
 
 @Module({
-  providers: [
-    SmtpService,
-    PrismaService,
-    SmtpConsumerService,
-    MailConsumerService,
-    MailProducerService,
-  ],
+  imports: [KafkaModule],
+  providers: [SmtpService, PrismaService, SmtpConsumerService],
   controllers: [],
+  exports: [SmtpService, SmtpConsumerService],
 })
 export class SmtpModule {}

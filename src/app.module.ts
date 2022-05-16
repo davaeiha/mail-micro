@@ -8,5 +8,6 @@ import { KafkaModule } from './kafka/kafka.module';
   imports: [SmtpModule, ImapModule, KafkaModule],
   controllers: [],
   providers: [PrismaService],
+  exports: [PrismaService],
 })
 export class AppModule {}

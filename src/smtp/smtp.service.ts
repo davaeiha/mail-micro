@@ -2,10 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { MailProducerService } from '../kafka/mail.producer.service';
-import { mail as Mail } from '@prisma/client';
-
-// import { MailProducerService } from '../kafka/mail.producer.service';
-import { ClientKafka } from '@nestjs/microservices';
+// import { mail as Mail } from '@prisma/client';
+// import { ClientKafka } from '@nestjs/microservices';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const nodemailer = require('nodemailer');
 
@@ -17,12 +15,7 @@ export class SmtpService {
     private mailProducerService: MailProducerService,
   ) {}
 
-  // async onModuleInit() {
-  //   console.log(this.client.subscribeToResponseOf('smtp'));
-  //   await this.client.connect();
-  // }
-
-  async createMail(data: Prisma.mailCreateInput, send = false) {
+  async createMail(token: string, data: Prisma.mailCreateInput, send = false) {
     this.mail = await this.prisma.mail.create({
       data,
       include: { receivers: true },
@@ -30,7 +23,9 @@ export class SmtpService {
     if (send) {
       await this.sendMailViaSmtp();
     }
-    console.log(JSON.stringify(this.mail));
+    // console.log(JSON.stringify(this.mail));
+
+    this.mail['token'] = token;
 
     await this.mailProducerService.produce({
       topic: 'smtp_response',

@@ -14,10 +14,10 @@ export class MailConsumerService implements OnModuleInit {
       { topics: ['smtp_request'] },
       {
         eachMessage: async ({ topic, partition, message }) => {
-          const { directive, send, ...data } = JSON.parse(
+          const { token, directive, send, ...data } = JSON.parse(
             message.value.toString(),
           );
-          await this.smtpService.createMail(data, send);
+          await this.smtpService.createMail(token, data, send);
         },
       },
     );
