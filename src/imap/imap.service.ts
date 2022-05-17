@@ -3,7 +3,7 @@ import { Interval } from '@nestjs/schedule';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from 'src/prisma.service';
 import { PrismaClient } from '@prisma/client';
-import { async } from 'rxjs';
+import { mail } from '@prisma/client';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const MailParser = require('mailparser').MailParser;
@@ -19,11 +19,12 @@ export class ImapService {
 
   @Interval(10000)
   async fetchMailViaImap() {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const self = this;
+
     const clients = await this.prisma.client.findMany();
-    const prisma = new PrismaClient();
 
     for await (const client of clients) {
-      // console.log(1);
       const imap = await new Imap({
         user: client.email,
         password: client.password,
@@ -79,9 +80,9 @@ export class ImapService {
                   create: undefined,
                 },
               };
-              // const email_params = null;
+
               const parser = new MailParser();
-              // console.log(msg);
+
               parser.on('headers', function (headers) {
                 email_params['subject'] = headers.get('subject');
                 email_params['send_at'] = headers.get('date');
@@ -114,17 +115,15 @@ export class ImapService {
 
               parser.on('data', async (data) => {
                 if (data.type === 'text') {
-                  // console.log(data.text); /* data.html*/
                   email_params['text'] = data.text;
                   email_params['body'] = data.html;
                 }
-                // if (data.type === 'attachment') {
-                //   // console.log(data.filename);
-                //   // data.content.pipe(process.stdout);
-                //   data.content.on('end', () => data.release());
-                // }
-                console.log(email_params);
-                await prisma.mail.create({
+                if (data.type === 'attachment') {
+                  data.content.pipe(process.stdout);
+                  data.content.on('end', () => data.release());
+                }
+
+                await self.prisma.mail.create({
                   data: email_params,
                   include: {
                     receivers: true,
@@ -141,13 +140,11 @@ export class ImapService {
               msg.once('end', () => {
                 parser.end();
               });
-              // mails.push(email_params);
             }
           });
         });
       }
     }
-
     console.log(1);
   }
 }
