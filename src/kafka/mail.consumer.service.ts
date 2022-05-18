@@ -17,7 +17,9 @@ export class MailConsumerService implements OnModuleInit {
           const { token, directive, send, ...data } = JSON.parse(
             message.value.toString(),
           );
-          await this.smtpService.createMail(token, data, send);
+
+          console.log(JSON.parse(message.value.toString()));
+          // await this.smtpService.createMail(token, data, send);
         },
       },
     );

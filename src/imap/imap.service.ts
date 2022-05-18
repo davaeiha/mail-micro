@@ -1,7 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, CACHE_MANAGER, Inject } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { Prisma } from '@prisma/client';
-import { PrismaService } from 'src/prisma.service';
+import { PrismaService } from '../prisma.service';
 import { PrismaClient } from '@prisma/client';
 import { mail } from '@prisma/client';
 
@@ -10,22 +10,33 @@ const MailParser = require('mailparser').MailParser;
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const Imap = require('node-imap');
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-// const prisma = require('../prisma.service');
+const inspect = require('util').inspect;
 
 @Injectable()
 export class ImapService {
-  private email_params: Prisma.mailCreateInput[];
-  constructor(private readonly prisma: PrismaService) {}
-
-  @Interval(10000)
+  constructor(
+    private readonly prisma: PrismaService, // @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {}
+  private email_params: Prisma.mailCreateInput = {
+    from_email: null,
+    subject: null,
+    text: null,
+    body: null,
+    send_at: null,
+    receivers: {
+      create: undefined,
+    },
+  };
+  private mails = [];
+  private imap;
+  @Interval(5000)
   async fetchMailViaImap() {
     // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const self = this;
 
     const clients = await this.prisma.client.findMany();
 
     for await (const client of clients) {
-      const imap = await new Imap({
+      this.imap = await new Imap({
         user: client.email,
         password: client.password,
         host: process.env.IMAP_HOST,
@@ -33,118 +44,131 @@ export class ImapService {
         tls: true,
       });
 
-      imap.once('ready', execute);
+      this.imap.once('ready', this.execute.bind(this));
 
-      imap.once('error', function (err) {
+      this.imap.once('error', (err) => {
         console.log(err);
       });
 
-      imap.connect();
+      this.imap.connect();
+    }
+  }
 
-      function execute() {
-        imap.openBox('INBOX', false, function (err, mailBox) {
-          if (err) {
-            throw err;
-          }
-          imap.search(['UNSEEN'], function (err, results) {
-            if (!results || !results.length) {
-              imap.end();
-              return;
-            }
-            /* mark as seen
-                imap.setFlags(results, ['\\Seen'], function(err) {
-                    if (!err) {
-                        console.log("marked as read");
-                    } else {
-                        console.log(JSON.stringify(err, null, 2));
-                    }
-                });*/
-            // return console.log(results);
-            const f = imap.fetch(results, { bodies: '' });
-            f.on('message', processMessage);
-            f.once('error', function (err) {
-              throw err;
-            });
-            f.once('end', function () {
-              imap.end();
-            });
+  private async execute() {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const self = this;
 
-            function processMessage(msg, seqno) {
-              const email_params: Prisma.mailCreateInput = {
-                from_email: null,
-                subject: null,
-                text: null,
-                body: null,
-                send_at: null,
-                receivers: {
-                  create: undefined,
-                },
-              };
-
-              const parser = new MailParser();
-
-              parser.on('headers', function (headers) {
-                email_params['subject'] = headers.get('subject');
-                email_params['send_at'] = headers.get('date');
-
-                if (headers.get('from') != undefined) {
-                  email_params['from_email'] =
-                    headers.get('from').value[0].address;
+    self.imap.openBox('INBOX', false, (err, mailBox) => {
+      if (err) {
+        throw err;
+      }
+      self.imap.search(['UNSEEN'], (err, results) => {
+        if (!results || !results.length) {
+          self.imap.end();
+          return;
+        }
+        /* mark as seen
+            this.imap.setFlags(results, ['\\Seen'], function(err) {
+                if (!err) {
+                    console.log("marked as read");
+                } else {
+                    console.log(JSON.stringify(err, null, 2));
                 }
-                const receivers = { create: [] };
-                if (headers.get('to') != undefined) {
-                  receivers.create.push({
-                    type: 'TO',
-                    to_email: headers.get('to').value[0].address,
-                  });
-                }
-                if (headers.get('cc') != undefined) {
-                  receivers.create.push({
-                    type: 'CC',
-                    to_email: headers.get('cc').value[0].address,
-                  });
-                }
-                if (headers.get('bcc') != undefined) {
-                  receivers.create.push({
-                    type: 'BCC',
-                    to_email: headers.get('bcc').value[0].address,
-                  });
-                }
-                email_params['receivers'] = receivers;
-              });
+            });*/
+        // return console.log(results);
+        const f = self.imap.fetch(results, { bodies: '', struct: true });
+        f.on('message', self.processMessage.bind(self));
+        f.once('error', (err) => {
+          throw err;
+        });
+        f.once('end', () => {
+          self.imap.end();
+          // console.log(self.mails);
+        });
+      });
+    });
+  }
 
-              parser.on('data', async (data) => {
-                if (data.type === 'text') {
-                  email_params['text'] = data.text;
-                  email_params['body'] = data.html;
-                }
-                if (data.type === 'attachment') {
-                  data.content.pipe(process.stdout);
-                  data.content.on('end', () => data.release());
-                }
+  private async processMessage(msg, seqno) {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const self = this;
 
-                await self.prisma.mail.create({
-                  data: email_params,
-                  include: {
-                    receivers: true,
-                  },
-                });
-              });
+    // const email_params: Prisma.mailCreateInput = {
+    //   from_email: null,
+    //   subject: null,
+    //   text: null,
+    //   body: null,
+    //   send_at: null,
+    //   receivers: {
+    //     create: undefined,
+    //   },
+    // };
 
-              msg.on('body', function (stream) {
-                stream.on('data', function (chunk) {
-                  parser.write(chunk.toString('utf8'));
-                });
-              });
+    const parser = new MailParser();
 
-              msg.once('end', () => {
-                parser.end();
-              });
-            }
-          });
+    parser.on('headers', function (headers) {
+      self.email_params['subject'] = headers.get('subject');
+      self.email_params['send_at'] = headers.get('date');
+      // console.log(headers.get('message'));
+
+      if (headers.get('from') != undefined) {
+        self.email_params['from_email'] = headers.get('from').value[0].address;
+      }
+      const receivers = { create: [] };
+      if (headers.get('to') != undefined) {
+        receivers.create.push({
+          type: 'TO',
+          to_email: headers.get('to').value[0].address,
         });
       }
-    }
-    console.log(1);
+      if (headers.get('cc') != undefined) {
+        receivers.create.push({
+          type: 'CC',
+          to_email: headers.get('cc').value[0].address,
+        });
+      }
+      if (headers.get('bcc') != undefined) {
+        receivers.create.push({
+          type: 'BCC',
+          to_email: headers.get('bcc').value[0].address,
+        });
+      }
+      self.email_params['receivers'] = receivers;
+    });
+
+    parser.on('data', async (data) => {
+      if (data.type === 'text') {
+        self.email_params['text'] = data.text;
+        self.email_params['body'] = data.html;
+      }
+      if (data.type === 'attachment') {
+        // await this.cacheManager.set('key', );
+        data.content.pipe(process.stdout);
+        data.content.on('end', () => data.release());
+      }
+      // console.log(self.email_params);
+      // self.mails.push(self.email_params);
+      // await self.prisma.mail.create({
+      //   data: self.email_params,
+      //   include: {
+      //     receivers: true,
+      //   },
+      // });
+    });
+
+    msg.on('body', async function (stream) {
+      stream.on('data', function (chunk) {
+        parser.write(chunk.toString('utf8'));
+      });
+    });
+    msg.once('attributes', function (attrs) {
+      // console.log('Attributes: %s', inspect(attrs, false, 8));
+      console.log(attrs);
+    });
+
+    msg.once('end', async () => {
+      parser.end();
+      // console.log(self.mails);
+    });
   }
 }
