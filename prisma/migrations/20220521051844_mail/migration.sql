@@ -17,10 +17,12 @@ CREATE TABLE `mail` (
     `subject` VARCHAR(255) NULL,
     `body` LONGTEXT NULL,
     `text` TEXT NULL,
+    `message_id` VARCHAR(255) NULL,
     `send_at` DATETIME NULL,
     `created_at` DATETIME NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME NULL DEFAULT CURRENT_TIMESTAMP(3),
 
+    UNIQUE INDEX `mail_message_id_key`(`message_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -41,6 +43,7 @@ CREATE TABLE `file` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `mail_id` INTEGER NULL,
     `name` VARCHAR(255) NOT NULL,
+    `title` VARCHAR(255) NOT NULL,
     `created_at` DATETIME NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME NULL DEFAULT CURRENT_TIMESTAMP(3),
 

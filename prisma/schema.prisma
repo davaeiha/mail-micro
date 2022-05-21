@@ -11,50 +11,52 @@ datasource db {
 }
 
 model client {
-  id             String       @id  @default(uuid())
-  email          String       @unique  @db.VarChar(80)
-  password       String       @db.VarChar(255)
-  created_at     DateTime     @default(now())   @db.DateTime
-  updated_at     DateTime     @db.DateTime
+  id         String   @id @default(uuid())
+  email      String   @unique @db.VarChar(80)
+  password   String   @db.VarChar(255)
+  created_at DateTime @default(now()) @db.DateTime
+  updated_at DateTime @db.DateTime
 }
 
 model mail {
-  id             Int           @id  @default(autoincrement())
-  from_email     String        @db.VarChar(80)
-  subject        String?       @db.VarChar(255)
-  body           String?       @db.LongText
-  text           String?       @db.Text
-  send_at        DateTime?     @db.DateTime
-  created_at     DateTime?     @default(now())   @db.DateTime
-  updated_at     DateTime?     @default(now()) @db.DateTime
+  id         Int       @id @default(autoincrement())
+  from_email String    @db.VarChar(80)
+  subject    String?   @db.VarChar(255)
+  body       String?   @db.LongText
+  text       String?   @db.Text
+  message_id String?   @unique @db.VarChar(255)
+  send_at    DateTime? @db.DateTime
+  created_at DateTime? @default(now()) @db.DateTime
+  updated_at DateTime? @default(now()) @db.DateTime
 
-  receivers      receiver[]
-files            file[]
+  receivers receiver[]
+  files     file[]
 }
 
 model receiver {
-  id             Int           @id @default(autoincrement())
-  mail_id        Int?
-  to_email       String        @db.VarChar(80)
-  type           ReceiveType   @default(TO) ///1:to/2:cc/3:bcc
-  created_at     DateTime?     @default(now()) @db.DateTime
-  updated_at     DateTime?     @default(now()) @db.DateTime
+  id         Int         @id @default(autoincrement())
+  mail_id    Int?
+  to_email   String      @db.VarChar(80)
+  type       ReceiveType @default(TO) ///1:to/2:cc/3:bcc
+  created_at DateTime?   @default(now()) @db.DateTime
+  updated_at DateTime?   @default(now()) @db.DateTime
 
-  mail           mail?         @relation(fields: [mail_id], references: [id])
+  mail mail? @relation(fields: [mail_id], references: [id])
 }
 
 model file {
-    id             Int           @id @default(autoincrement())
-    mail_id        Int?
-    name           String        @db.VarChar(255)
-    created_at     DateTime?     @default(now()) @db.DateTime
-    updated_at     DateTime?     @default(now()) @db.DateTime
+  id         Int       @id @default(autoincrement())
+  mail_id    Int?
+  name       String?    @db.VarChar(255)
+  title      String?    @db.VarChar(255)
+  created_at DateTime? @default(now()) @db.DateTime
+  updated_at DateTime? @default(now()) @db.DateTime
 
-    mail           mail?         @relation(fields: [mail_id], references: [id])
+  mail mail? @relation(fields: [mail_id], references: [id])
 }
 
-enum ReceiveType{
-     TO   @map("1")
-     CC   @map("2")
-     BCC  @map("3")
+enum ReceiveType {
+  TO   @map("1")
+  CC   @map("2")
+  BCC  @map("3")
 }

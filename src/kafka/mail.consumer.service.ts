@@ -1,27 +1,30 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
-import { SmtpConsumerService } from '../smtp/smtp.consumer.service';
-import { SmtpService } from '../smtp/smtp.service';
+import { Injectable, OnApplicationShutdown } from '@nestjs/common';
+import {
+  Consumer,
+  ConsumerRunConfig,
+  ConsumerSubscribeTopics,
+  Kafka,
+} from 'kafkajs';
 
 @Injectable()
-export class MailConsumerService implements OnModuleInit {
-  constructor(
-    private readonly consumerService: SmtpConsumerService,
-    private readonly smtpService: SmtpService,
-  ) {}
+export class MailConsumerService implements OnApplicationShutdown {
+  private readonly kafka = new Kafka({
+    brokers: ['127.0.0.1:9092'],
+  });
 
-  async onModuleInit() {
-    await this.consumerService.consume(
-      { topics: ['smtp_request'] },
-      {
-        eachMessage: async ({ topic, partition, message }) => {
-          const { token, directive, send, ...data } = JSON.parse(
-            message.value.toString(),
-          );
+  private readonly consumers: Consumer[] = [];
 
-          console.log(JSON.parse(message.value.toString()));
-          // await this.smtpService.createMail(token, data, send);
-        },
-      },
-    );
+  async consume(topic: ConsumerSubscribeTopics, config: ConsumerRunConfig) {
+    const consumer = this.kafka.consumer({ groupId: 'smtp_create_mail' });
+    await consumer.connect();
+    await consumer.subscribe(topic);
+    await consumer.run(config);
+    this.consumers.push(consumer);
+  }
+
+  async onApplicationShutdown() {
+    for (const consumer of this.consumers) {
+      await consumer.disconnect();
+    }
   }
 }

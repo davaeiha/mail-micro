@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { PrismaService } from '../prisma.service';
-import { MailProducerService } from '../kafka/mail.producer.service';
+import { PrismaService } from '../../prisma.service';
+import { MailProducerService } from '../../kafka/mail.producer.service';
 // import { mail as Mail } from '@prisma/client';
 // import { ClientKafka } from '@nestjs/microservices';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
